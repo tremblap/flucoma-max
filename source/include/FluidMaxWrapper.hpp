@@ -1573,7 +1573,7 @@ public:
         mInputListViews.emplace_back(mInputListData.row(i));
       }
 
-      if (mClient.controlChannelsOut().size != -1)
+      if (mClient.controlChannelsOut().size == -1)
       {
         mOutputListData.resize(mClient.controlChannelsOut().count, mListSize);
         mOutputListAtoms.reserve(mListSize);
