@@ -599,7 +599,7 @@ class FluidMaxWrapper
       {
         x->mClient.process(x->mInputListViews, x->mOutputListViews, c);
 
-        index outSize = x->mClient.controlChannelsOut().size == -1 ? std::min<index>(x->mListSize, ac) : x->mClient.controlChannelsOut().size; //if -1 we change, if not we stick to the value provided
+        index outSize = isControlOutFollowsIn<typename Client::Client> ? std::min<index>(x->mListSize, ac) : x->mClient.controlChannelsOut().size;
           
         for (index i = asSigned(x->mDataOutlets.size()) - 1; i >= 0; --i)
         {
@@ -1365,9 +1365,9 @@ public:
   
     if (mClient.controlChannelsOut().count)
     {
-      index outputSize = mClient.controlChannelsOut().max > -1
-                             ? mClient.controlChannelsOut().max
-                             : mListSize;
+      index outputSize = isControlOutFollowsIn<typename Client::Client>
+                         ? mListSize
+                         : mClient.controlChannelsOut().max;
 
       if (outputSize)
       {
@@ -1472,12 +1472,12 @@ public:
   {
     void* x = object_alloc(getClass());
     new (x) FluidMaxWrapper(sym, ac, av);
-    if (static_cast<index>(attr_args_offset(static_cast<short>(ac), av)) - isControlIn<typename Client::Client> >
+    if (static_cast<index>(attr_args_offset(static_cast<short>(ac), av)) - isControlOutFollowsIn<typename Client::Client>>
         ParamDescType::NumFixedParams + ParamDescType::NumPrimaryParams)
     {
       object_warn((t_object*) x,
                   "Too many arguments. Got %d, expect at most %d", ac,
-                  ParamDescType::NumFixedParams + isControlIn<typename Client::Client>);
+                  ParamDescType::NumFixedParams + isControlOutFollowsIn<typename Client::Client>);
     }
 
     return x;
@@ -1497,12 +1497,16 @@ public:
     if (isControlIn<typename Client::Client>)
     {
       class_addmethod(getClass(), (method) handleList, "list", A_GIMME, 0);
+    }
+    
+    if (isControlOutFollowsIn<typename Client::Client>)
+    {
       t_object* a = attr_offset_new("autosize", USESYM(atom_long), 0, nullptr, nullptr,
                                   calcoffset(FluidMaxWrapper, mAutosize));
       class_addattr(getClass(), a);
       CLASS_ATTR_FILTER_CLIP(getClass(), "autosize", 0, 1);
       CLASS_ATTR_STYLE_LABEL(getClass(), "autosize", 0, "onoff",
-                           "Set auto size for list input");
+                           "Set auto resizing of list input and output");
     }
     
     class_addmethod(getClass(), (method) doNotify, "notify", A_CANT, 0);
@@ -1573,7 +1577,7 @@ public:
         mInputListViews.emplace_back(mInputListData.row(i));
       }
 
-      if (mClient.controlChannelsOut().size == -1)
+      if (isControlOutFollowsIn<typename Client::Client>)
       {
         mOutputListData.resize(mClient.controlChannelsOut().count, mListSize);
         mOutputListAtoms.reserve(mListSize);
@@ -1736,7 +1740,7 @@ private:
     {
       long argCount{0};
       
-      if (isControlIn<typename Client::Client>)
+      if (isControlOutFollowsIn<typename Client::Client>)
       {
         mListSize = atom_getlong(av);
         numArgs -= 1;
